@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>薪酬绩效管理中心 · 演示</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f3f5f9;color:#17243c;font:16px system-ui,sans-serif}header{background:#122443;color:white;padding:32px max(24px,calc((100% - 1040px)/2))}header p{color:#becde4;margin:10px 0 0}h1{font-size:clamp(25px,5vw,38px);margin:0}main{max-width:1088px;margin:auto;padding:24px}nav,.filters{display:flex;gap:10px;flex-wrap:wrap}button,select{font:inherit;border:1px solid #d5ddeb;border-radius:8px;padding:10px 14px;background:white;color:#17243c}button{cursor:pointer}button[aria-pressed=true]{background:#214f9a;color:white;border-color:#214f9a}.filters{margin:20px 0;align-items:center}.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px;margin-bottom:20px}.metrics div,section{background:white;border:1px solid #dce4f0;border-radius:12px;padding:18px}.metrics strong{display:block;font-size:26px;margin-top:7px}h2{margin:0 0 12px;font-size:19px}.scroll{overflow:auto}table{width:100%;border-collapse:collapse;min-width:460px}th,td{text-align:left;padding:12px 8px;border-bottom:1px solid #e6ebf3}th{background:#f5f8fc}th:last-child,td:last-child{text-align:right}
+</style>
+<header><h1>薪酬绩效管理中心</h1><p>演示环境 · 人员与金额均为模拟数据</p></header>
+<main>
+<nav aria-label="报表类型"><button aria-pressed="true">季度奖金</button><button aria-pressed="false">年终奖</button><button aria-pressed="false">薪资明细</button></nav>
+<div class="filters"><label>年度 <select id="year"><option>2025</option><option>2024</option></select></label><label id="periodLabel">季度 <select id="period"></select></label><label>部门 <select id="dept"><option>全部部门</option><option>研发部</option><option>市场部</option><option>运营部</option></select></label></div>
+<div class="metrics" aria-live="polite"><div>人员数<strong id="count"></strong></div><div id="sumCard"><span id="sumLabel"></span><strong id="sum"></strong></div><div>部门数<strong id="departments"></strong></div></div>
+<section><h2 id="sectionTitle"></h2><div class="scroll" tabindex="0"><table><thead><tr><th scope="col">工号</th><th scope="col">姓名</th><th scope="col">部门</th><th scope="col" id="amountLabel"></th></tr></thead><tbody id="records"></tbody></table></div></section>
+</main>
+<script>
+const employees = [
+  ['D001','员工甲','研发部',18500],['D002','员工乙','研发部',16300],
+  ['D003','员工丙','市场部',15100],['D004','员工丁','市场部',13200],
+  ['D005','员工戊','运营部',13900],['D006','员工己','运营部',12400]
+];
+const tabs = [...document.querySelectorAll('nav button')];
+const byId = id => document.getElementById(id);
+const year = byId('year'), period = byId('period'), dept = byId('dept');
+const money = new Intl.NumberFormat('zh-CN',{style:'currency',currency:'CNY',maximumFractionDigits:0});
+let view = 0;
+function render() {
+  const scope = employees.filter(employee => dept.selectedIndex === 0 || employee[2] === dept.value);
+  const factor = [0.32,1.65,1][view];
+  const rows = scope.map(([id,name,department,base]) => [id,name,department,Math.round(base * factor * (year.value === '2025' ? 1 : 0.94) * (1 + period.selectedIndex * 0.015))]);
+  byId('count').textContent = rows.length;
+  byId('sum').textContent = money.format(rows.reduce((total,row) => total + row[3],0));
+  byId('departments').textContent = new Set(rows.map(row => row[2])).size;
+  byId('sectionTitle').textContent = tabs[view].textContent + ' · 人员明细';
+  byId('sumLabel').textContent = view === 2 ? '应发薪资合计' : '实发奖金合计';
+  byId('amountLabel').textContent = view === 2 ? '应发薪资' : '实发奖金';
+  byId('records').replaceChildren(...rows.map(row => {
+    const tr = document.createElement('tr');
+    [row[0],row[1],row[2],money.format(row[3])].forEach(value => {
+      tr.insertCell().textContent = value;
+    });
+    return tr;
+  }));
+}
+function selectView(index) {
+  view = index;
+  tabs.forEach((tab,i) => tab.setAttribute('aria-pressed',String(i === index)));
+  const label = byId('periodLabel');
+  label.hidden = index === 1;
+  label.firstChild.textContent = index === 2 ? '月份 ' : '季度 ';
+  const periods = index === 2 ? Array.from({length:12},(_,i) => (i+1) + '月') : ['Q1','Q2','Q3','Q4'];
+  period.replaceChildren(...periods.map(value => new Option(value)));
+  render();
+}
+tabs.forEach((tab,index) => tab.addEventListener('click',() => selectView(index)));
+[year,period,dept].forEach(filter => filter.addEventListener('change',render));
+selectView(0);
+</script>
+</html>
